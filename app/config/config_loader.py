@@ -24,7 +24,7 @@ from app.config.database_config import (
 )
 from app.config.llm_config import LLMConfig
 from app.config.rag_config import RAGConfig
-from app.config.web_search_config import WebSearchConfig
+from app.config.web_search_config import WebSearchConfig, DeepResearchConfig
 from app.config.vision_config import VisionConfig, ImageGenerationConfig, ImageStorageConfig
 from app.config.evaluation_config import EvaluationConfig, AlertThresholds
 from app.config.mcp_config import MCPConfig, MCPServerConfig
@@ -179,19 +179,31 @@ def load_rag_config(llm_config: Any | None = None) -> RAGConfig:
 def load_web_search_config() -> WebSearchConfig:
     """
     Load web search configuration from YAML + environment variables.
-    
+
     Environment variables:
-    - WEB_SEARCH_API_KEY: API key for web search provider
+    - YOUCOM_API_KEY: API key for You.com Search API
     """
     config_data = _load_config_data()
     ws_data = dict(config_data.get("web_search", {}) or {})
-    
-    # Load API key from environment
-    api_key = os.getenv("WEB_SEARCH_API_KEY")
+
+    # Load API key from environment (You.com)
+    api_key = os.getenv("YOUCOM_API_KEY")
     if api_key:
         ws_data["api_key"] = api_key
-    
+
     return WebSearchConfig.model_validate(ws_data)
+
+
+def load_deep_research_config() -> DeepResearchConfig:
+    """
+    Load deep research configuration from YAML.
+
+    No environment variables needed - uses YOUCOM_API_KEY from web_search.
+    """
+    config_data = _load_config_data()
+    dr_data = dict(config_data.get("deep_research", {}) or {})
+
+    return DeepResearchConfig.model_validate(dr_data)
 
 
 def load_vision_config() -> VisionConfig:

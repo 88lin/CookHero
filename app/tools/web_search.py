@@ -3,9 +3,9 @@ Web Search Tool for CookHero.
 
 Provides two core methods:
 1. decide_search() - Determines if web search is needed and generates search parameters
-2. execute_search() - Executes the actual web search using Tavily API
+2. execute_search() - Executes the actual web search using You.com Search API
 
-Uses Tavily official Python client for reliable web search.
+Uses You.com official API for reliable web search.
 Uses LLM tool calling for structured output.
 """
 
@@ -18,9 +18,9 @@ from typing import Any, Dict, List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from tavily import TavilyClient
 
 from app.config import settings, LLMType
+from app.integrations.youcom import get_youcom_client
 from app.llm import LLMProvider, get_usage_callbacks, llm_context
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ class WebSearchTool:
     """
     Web Search Tool providing decision and execution methods.
 
-    Uses Tavily official Python client for web search.
+    Uses You.com Search API for web search.
     """
 
     MODULE_NAME = "web_search"
@@ -160,20 +160,18 @@ class WebSearchTool:
 
         Args:
             llm_type: Which LLM tier to use (fast/normal)
-            api_key: Tavily API key
+            api_key: You.com API key
             max_results: Maximum search results to return
         """
         # Load from settings with overrides
         web_search_config = settings.web_search
 
-        self.api_key = (
-            api_key or web_search_config.api_key or os.getenv("WEB_SEARCH_API_KEY", "")
-        )
+        self.api_key = api_key or web_search_config.api_key or os.getenv("YOUCOM_API_KEY", "")
         self.max_results = max_results or web_search_config.max_results
         self.enabled = web_search_config.enabled
 
-        # Initialize Tavily client (lazy initialization)
-        self._tavily_client: Optional[TavilyClient] = None
+        # Initialize You.com client (lazy initialization)
+        self._youcom_client = None
 
         # Initialize LLM for decision making
         self._llm_type = llm_type
@@ -219,14 +217,14 @@ class WebSearchTool:
         return make_search_decision
 
     @property
-    def tavily_client(self) -> Optional[TavilyClient]:
-        """Lazy initialization of Tavily client."""
-        if self._tavily_client is None and self.api_key:
+    def youcom_client(self):
+        """Lazy initialization of You.com client."""
+        if self._youcom_client is None and self.api_key:
             try:
-                self._tavily_client = TavilyClient(api_key=self.api_key)
+                self._youcom_client = get_youcom_client(api_key=self.api_key)
             except Exception as e:
-                logger.error(f"Failed to initialize Tavily client: {e}")
-        return self._tavily_client
+                logger.error(f"Failed to initialize You.com client: {e}")
+        return self._youcom_client
 
     async def decide_search(
         self,
@@ -317,7 +315,7 @@ class WebSearchTool:
         search_params: WebSearchParams,
     ) -> List[WebSearchResult]:
         """
-        Execute web search using Tavily API.
+        Execute web search using You.com Search API.
 
         Args:
             search_params: Parameters for the search
@@ -325,40 +323,43 @@ class WebSearchTool:
         Returns:
             List of WebSearchResult objects
         """
-        if not self.tavily_client:
-            logger.warning("Tavily client not initialized, returning empty results")
+        if not self.youcom_client:
+            logger.warning("You.com client not initialized, returning empty results")
             return []
 
         try:
-            # Use Tavily's search method
-            response = self.tavily_client.search(
-                query=search_params.query,
-                topic="general",
-                search_depth="basic",
-                max_results=search_params.max_results,
-                include_answer=False,
-                include_images=False,
-                include_raw_content=True,
-            )
+            import asyncio
+
+            def do_search():
+                return self.youcom_client.search(
+                    query=search_params.query,
+                    count=search_params.max_results,
+                )
+
+            response = await asyncio.to_thread(do_search)
+
+            if "error" in response:
+                logger.error(f"You.com search failed: {response['error']}")
+                return []
 
             results = []
             for item in response.get("results", [])[: search_params.max_results]:
                 results.append(
                     WebSearchResult(
                         title=item.get("title", ""),
-                        snippet=item.get("content", ""),
+                        snippet=item.get("snippet", ""),
                         source=self._extract_domain(item.get("url", "")),
                         url=item.get("url"),
                     )
                 )
 
             logger.info(
-                f"Tavily search completed: query='{search_params.query}', results={len(results)}"
+                f"You.com search completed: query='{search_params.query}', results={len(results)}"
             )
             return results
 
         except Exception as e:
-            logger.error(f"Tavily search failed: {e}", exc_info=True)
+            logger.error(f"You.com search failed: {e}", exc_info=True)
             return []
 
     def _extract_domain(self, url: str) -> str:

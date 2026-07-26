@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from app.config.database_config import DatabaseConfig
 from app.config.llm_config import LLMConfig
 from app.config.rag_config import RAGConfig
-from app.config.web_search_config import WebSearchConfig
+from app.config.web_search_config import WebSearchConfig, DeepResearchConfig
 from app.config.vision_config import VisionConfig, ImageGenerationConfig, ImageStorageConfig
 from app.config.evaluation_config import EvaluationConfig
 from app.config.mcp_config import MCPConfig
@@ -97,6 +97,9 @@ class Settings(BaseModel):
     
     # Web Search configuration loaded from config.yml
     web_search: WebSearchConfig = load_web_search_config()
+
+    # Deep Research configuration loaded from config.yml
+    deep_research: DeepResearchConfig = load_deep_research_config()
     
     # Vision/Multimodal configuration loaded from config.yml
     vision: VisionConfig = load_vision_config()

@@ -188,16 +188,28 @@ evaluation:
     answer_relevancy: 0.5
 
 # =============================================================================
-# 7. Web Search Configuration (Tavily)
+# 7. Web Search Configuration (You.com)
 # =============================================================================
-# Configuration for real-time web search enhancement.
+# Configuration for real-time web search enhancement using You.com API.
+# You.com Search API replaces Tavily for better result quality.
 # =============================================================================
 
 web_search:
   enabled: true
   # Maximum number of search results to return
   max_results: 6
-  # api_key: Loaded from .env (WEB_SEARCH_API_KEY)
+  # api_key: Loaded from .env (YOUCOM_API_KEY)
+
+# =============================================================================
+# 7b. Deep Research Configuration (You.com)
+# =============================================================================
+# Configuration for You.com Research API - deep research capability.
+# =============================================================================
+
+deep_research:
+  enabled: true
+  # Research depth: lite, standard, deep, exhaustive
+  research_effort: "standard"
 
 # =============================================================================
 # 8. Image Generation Configuration (OpenAI DALL-E)
