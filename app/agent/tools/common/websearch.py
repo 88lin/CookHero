@@ -2,7 +2,7 @@
 """
 网络搜索 Tool
 
-使用 Tavily API 搜索互联网获取最新信息。
+使用 You.com Search API 搜索互联网获取最新信息。
 """
 
 import asyncio
@@ -19,7 +19,7 @@ class WebSearchTool(BaseTool):
     """
     网络搜索 Tool。
 
-    使用 Tavily API 搜索互联网获取最新信息。
+    使用 You.com Search API 搜索互联网获取最新信息。
     """
 
     name = "web_search"
@@ -30,24 +30,8 @@ class WebSearchTool(BaseTool):
             "query": {"type": "string", "description": "搜索关键词或问题"},
             "max_results": {
                 "type": "integer",
-                "description": "返回结果数量 (1-10)",
+                "description": "返回结果数量 (1-20)",
                 "default": 5,
-            },
-            "search_depth": {
-                "type": "string",
-                "enum": ["basic", "advanced"],
-                "default": "basic",
-                "description": "搜索深度：basic 快速搜索，advanced 深度搜索",
-            },
-            "include_domains": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "限定搜索的域名列表，例如 ['who.int', 'cdc.gov']",
-            },
-            "exclude_domains": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "排除的域名列表",
             },
         },
         "required": ["query"],
@@ -57,9 +41,6 @@ class WebSearchTool(BaseTool):
         self,
         query: str = "",
         max_results: int = 5,
-        search_depth: str = "basic",
-        include_domains: Optional[list[str]] = None,
-        exclude_domains: Optional[list[str]] = None,
         **kwargs,
     ) -> ToolResult:
         """执行网络搜索。"""
@@ -67,43 +48,40 @@ class WebSearchTool(BaseTool):
             return ToolResult(success=False, error="Query is required")
 
         try:
-            from tavily import TavilyClient
+            from app.integrations.youcom import get_youcom_client
             from app.config import settings
 
             api_key = settings.web_search.api_key
             if not api_key:
                 return ToolResult(
                     success=False,
-                    error="Web search API key is not configured",
+                    error="Web search API key is not configured. Set YOUCOM_API_KEY in .env",
                 )
 
-            client = TavilyClient(api_key=api_key)
+            client = get_youcom_client(api_key=api_key)
 
-            # Build search parameters
-            search_params = {
-                "query": query,
-                "max_results": min(max(1, max_results), 10),
-                "search_depth": search_depth,
-                "include_answer": True,
-            }
+            # Run blocking API call in thread pool
+            def do_search():
+                return client.search(query=query, count=min(max(1, max_results), 20))
 
-            if include_domains:
-                search_params["include_domains"] = include_domains
-            if exclude_domains:
-                search_params["exclude_domains"] = exclude_domains
+            response = await asyncio.to_thread(do_search)
 
-            # Execute search
-            response = await asyncio.to_thread(client.search, **search_params)
+            if "error" in response:
+                return ToolResult(success=False, error=response["error"])
+
+            results = response.get("results", [])
+            if not results:
+                return ToolResult(success=True, data={"query": query, "results": [], "answer": None})
 
             # Format results
-            results = []
-            for result in response.get("results", []):
-                results.append(
+            formatted = []
+            for item in results:
+                formatted.append(
                     {
-                        "title": result.get("title", ""),
-                        "url": result.get("url", ""),
-                        "content": result.get("content", ""),
-                        "score": result.get("score", 0),
+                        "title": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "content": item.get("snippet", ""),
+                        "score": 0,
                     }
                 )
 
@@ -111,15 +89,15 @@ class WebSearchTool(BaseTool):
                 success=True,
                 data={
                     "query": query,
-                    "results": results,
-                    "answer": response.get("answer"),
+                    "results": formatted,
+                    "answer": None,
                 },
             )
 
         except ImportError:
             return ToolResult(
                 success=False,
-                error="tavily package is not installed. Run: pip install tavily-python",
+                error="youcom package is not installed or app.integrations.youcom is not available",
             )
         except Exception as e:
             logger.exception(f"Web search failed: {e}")

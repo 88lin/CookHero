@@ -49,7 +49,7 @@ from app.config.rag_config import (
     DataSourceConfig,
     HowToCookConfig,
 )
-from app.config.web_search_config import WebSearchConfig
+from app.config.web_search_config import WebSearchConfig, DeepResearchConfig
 from app.config.vision_config import VisionConfig, ImageGenerationConfig, ImageStorageConfig
 from app.config.mcp_config import MCPConfig, MCPServerConfig
 
@@ -80,6 +80,7 @@ __all__ = [
     "HowToCookConfig",
     # Web Search configuration
     "WebSearchConfig",
+    "DeepResearchConfig",
     # Vision configuration
     "VisionConfig",
     # MCP configuration

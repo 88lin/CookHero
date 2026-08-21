@@ -10,6 +10,7 @@ from app.agent.tools.common.datetime import DateTimeTool
 from app.agent.tools.common.websearch import WebSearchTool
 from app.agent.tools.common.image_generator import ImageGeneratorTool
 from app.agent.tools.common.knowledge_base_search import KnowledgeBaseSearchTool
+from app.agent.tools.common.deep_research import DeepResearchTool
 from app.agent.registry import AgentHub
 
 
@@ -20,6 +21,7 @@ def register_common_tools():
     AgentHub.register_tool(WebSearchTool(), provider="local")
     AgentHub.register_tool(ImageGeneratorTool(), provider="local")
     AgentHub.register_tool(KnowledgeBaseSearchTool(), provider="local")
+    AgentHub.register_tool(DeepResearchTool(), provider="local")
 
 
 __all__ = [
@@ -28,5 +30,6 @@ __all__ = [
     "WebSearchTool",
     "ImageGeneratorTool",
     "KnowledgeBaseSearchTool",
+    "DeepResearchTool",
     "register_common_tools",
 ]
